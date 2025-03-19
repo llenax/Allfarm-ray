@@ -113,8 +113,10 @@ typedef enum {
 typedef struct {
   float posX;
   float posY;
+  int height;
+  int width;
+  Vector2 direction;
   Vector2 velocity;
-  FacingDirection facing;
 } Player;
 
 typedef struct GameState {
@@ -127,7 +129,7 @@ static const GameState DefaultGameState = {
   .player = (Player) {
     .posX = 0.0f,
     .posY = 0.0f,
-    .facing = EAST,
+    .velocity = (Vector2) { 0.f, 0.f },
   }
 };
 
@@ -562,8 +564,6 @@ int main() {
 
   Player* player = &gameState.player;
 
-  camera.target =
-      (Vector2){player->posX, player->posY}; // World-space point the camera focuses on
   camera.rotation = 0.0f;
   camera.zoom = 1.0f;
 
@@ -576,11 +576,6 @@ int main() {
     /*  camera.target = Vector2Subtract(*/
     /*      GetScreenToWorld2D((Vector2){0.0f, 0.0f}, camera), camera.target);*/
     /*}*/
-
-    camera.target.x = player->posX + 20.0f;
-    camera.target.y = player->posY + 20.f;
-
-    camera.offset = (Vector2) { .x = screenWidth / 2.0f, .y = screenHeight / 2.0f };
 
     if(IsKeyPressed(KEY_G)) {
       debugGrid = !debugGrid;
@@ -603,9 +598,52 @@ int main() {
     if (camera.zoom < 0.5f)
       camera.zoom = 0.5f;
 
+    // Player
+    Rectangle* player_rect = EntityTextures[PLAYER];
+
+    player->height = 48.f;
+    player->width = 48.f;
+
+    int player_accel = 200;
+    if(IsKeyDown(KEY_LEFT_SHIFT))
+      player_accel *= 2;
+
+    int input_dirs[4] = {
+      IsKeyDown(KEY_A),
+      IsKeyDown(KEY_D),
+      IsKeyDown(KEY_W),
+      IsKeyDown(KEY_S)
+    };
+    player->direction.x = input_dirs[1] - input_dirs[0];
+    player->direction.y = input_dirs[3] - input_dirs[2];
+
+    player->velocity.x = Lerp(
+        player->velocity.x,
+        player->direction.x * player_accel,
+        GetFrameTime() * 7.0f
+    );
+    player->velocity.y = Lerp(
+        player->velocity.y,
+        player->direction.y * player_accel,
+        GetFrameTime() * 7.0f
+    );
+
+    player->posX += player->velocity.x * GetFrameTime();
+    player->posY += player->velocity.y * GetFrameTime();
+
+    camera.target = (Vector2) {
+      player->posX + (player->width / 2.f),
+      player->posY + (player->height / 2.f)
+    };
+
+    camera.offset = (Vector2) {
+      .x = GetScreenWidth() / 2.f,
+      .y = GetScreenHeight() / 2.f
+    };
+
     // Determine grid cell
-    int cellX = (int)floor(player->posX / TILE_SIZE);
-    int cellY = (int)floor(player->posY / TILE_SIZE);
+    int cellX = (int)floor((player->posX + (player->width / 2.f)) / TILE_SIZE);
+    int cellY = (int)floor((player->posY + (player->height / 2.f)) / TILE_SIZE);
 
     // Calculate world coordinates of the top-left corner of the hovered cell
     Vector2 cellWorldPos = (Vector2){cellX * TILE_SIZE, cellY * TILE_SIZE};
@@ -631,7 +669,6 @@ int main() {
       }
     }
 
-
     for (int tileY = 0; tileY < MAX_TILE_Y; tileY++) {
       for (int tileX = 0; tileX < MAX_TILE_X; tileX++) {
         Tile* curTile = &gameState.tile_map[tileY][tileX];
@@ -650,7 +687,6 @@ int main() {
       }
     }
 
-
     if(debugGrid) {
       for (int gridIdx = 0; gridIdx <= MAX_TILE_X * TILE_SIZE;
            gridIdx += TILE_SIZE) {
@@ -662,34 +698,17 @@ int main() {
       }
     }
 
-    // Player
-    Rectangle* player_rect = EntityTextures[PLAYER];
-
-    int player_accel = 200;
-    if(IsKeyDown(KEY_LEFT_SHIFT))
-      player_accel *= 2;
-
-    int input_dirs[4] = {
-      IsKeyDown(KEY_A),
-      IsKeyDown(KEY_D),
-      IsKeyDown(KEY_W),
-      IsKeyDown(KEY_S)
-    };
-
-    float velocity_x = (input_dirs[1] - input_dirs[0]) * player_accel;
-    float velocity_y = (input_dirs[3] - input_dirs[2]) * player_accel;
-    player->posX += velocity_x * GetFrameTime();
-    player->posY += velocity_y * GetFrameTime();
-
-
     DrawTexturePro(atlas, player_rect[ENTITY_IDLE],
         (Rectangle) {
           .x = player->posX,
           .y = player->posY,
-          64.0f,
-          64.0f,
+          player->width,
+          player->height
         },
-        (Vector2) { 0.0f, 0.0f }, 0.0f, WHITE);
+        (Vector2) { 0.0f, 0.0f },
+        0.0f,
+        WHITE
+    );
 
     DrawRectangle(cellWorldPos.x, cellWorldPos.y, TILE_SIZE, TILE_SIZE, (Color) { 255, 255 ,255, 50 });
 
@@ -704,8 +723,6 @@ int main() {
     DrawText(buffer, 10, 100, 20, WHITE);
     sprintf(buffer, "%f", cameraState.scaleFactor);
     DrawText(buffer, 10, 150, 20, WHITE);
-    sprintf(buffer, "%d", player->facing);
-    DrawText(buffer, 10, 200, 20, WHITE);
 
     EndDrawing();
   }
