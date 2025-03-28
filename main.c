@@ -588,7 +588,6 @@ int main() {
       /*camera.offset = GetMousePosition();*/
       /*camera.target = mouseWorldPos;*/
       cameraState.scaleFactor = 1.1f + (0.25f * fabsf(wheel));
-      printf("%f\n", wheel);
       if (wheel < 0)
         cameraState.scaleFactor = 1.0f/cameraState.scaleFactor ;
       camera.zoom = Clamp(camera.zoom * cameraState.scaleFactor, 0.125f, 64.0f);
