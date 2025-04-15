@@ -586,23 +586,19 @@ int main() {
       }
     }
 
-    // Check if player is moving
-    // If so, animate player sprite
+    // Animate player sprite
     if(
         fabsf(player->velocity.x) > 100.f ||
         fabsf(player->velocity.y) > 100.f)
     {
       Texture2D player_texture = *textures[TP_ENTITY][PLAYER];
 
-      // mv is max velocity
-      int mv = player->base_accel * player->run_accel_modifier;
-      // sfps is how many frames of sprite frame shown per second
-      int sfps = 10;
+      int max_velocity = player->base_accel * player->run_accel_modifier;
+      int sprite_fps = 10;
       if(player->frames_counter >= (
           FPS /
-          (sfps *
-           (fabsf(player->velocity.x) + fabsf(player->velocity.y)) / mv
-          )
+          (sprite_fps *
+           (fabsf(player->velocity.x) + fabsf(player->velocity.y)) / max_velocity)
         )
       ) {
         player->frames_counter = 0;
